@@ -2,6 +2,7 @@ const express = require('express');
 const PDFParser = require('pdf2json');
 const axios = require('axios');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = 3000;
@@ -17,6 +18,9 @@ app.get('/read', async (req, res) => {
         // Unduh file PDF dari URL
         const response = await axios.get(link, { responseType: 'arraybuffer' });
         const pdfBuffer = response.data;
+
+        // Tentukan nama file berdasarkan URL
+        const fileName = path.basename(link);
 
         // Simpan PDF ke file sementara
         const tempFilePath = './temp.pdf';
@@ -43,8 +47,24 @@ app.get('/read', async (req, res) => {
                 };
             });
 
+            // Buat metadata tambahan
+            const metadata = {
+                url: link,
+                totalPages: pdfData.Pages.length,
+                fileName: fileName,
+                dateCreated: pdfData.Meta.CreationDate
+                    ? pdfData.Meta.CreationDate.replace(/D:/, '') // Format tanggal jika ada
+                    : 'Unknown',
+            };
+
+            // Gabungkan metadata dan konten halaman
+            const responseData = {
+                metadata,
+                pages: extractedData,
+            };
+
             // Kirim hasil parsing sebagai JSON
-            res.json(extractedData);
+            res.json(responseData);
         });
 
         pdfParser.on('pdfParser_dataError', (errData) => {
